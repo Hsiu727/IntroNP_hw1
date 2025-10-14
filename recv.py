@@ -4,8 +4,8 @@ import time
 
 from tt import pls, GameUI, send_json_line, recv_json_line, start_status_reporter, safe_logout
 
-HOST = 'localhost'
-PORT = 5000
+HOST = '140.113.17.11'
+PORT = 15000
 UDP_PORT = 10002
 RECV_STEP = 2.0
 WAIT_WINDOW = 15.0

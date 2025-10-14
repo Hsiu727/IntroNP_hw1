@@ -5,10 +5,11 @@ import random
 
 from tt import GameUI, gameplay, send_json_line, recv_json_line, start_status_reporter, safe_logout
 
-HOST = 'localhost'
-PORT = 5000
-UDP_PORT_RANGE = [i for i in range(10000,11001)]
-INVITE_RETRY_INTERVAL = 2.0
+HOST = '140.113.17.11'
+PORT = 15000
+UDP_PORT_RANGE = [i for i in range(10000,10010)]
+SERVER_IP = ['140.113.17.11', '140.113.17.12', '140.113.17.13', '140.113.17.14']
+INVITE_RETRY_INTERVAL = 0.01
 INVITE_WAIT_WINDOW    = 15.0
 ACK_TYPES = {"ACCEPT", "DECLINE"}
 TCP_BASE_PORT = 10000
@@ -259,7 +260,7 @@ class HostGame(gameplay):
             except Exception:
                 pass
 
-def tcp_gameplay(udp, op, lobbySock, username, host = '0.0.0.0', port = 8000):
+def tcp_gameplay(udp, op, lobbySock, username, host = '140.113.17.14', port = 8000):
     op_ip, op_port, name = op[0]
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -380,25 +381,26 @@ def Selected_opponent(udp, opponent):
   
 def search_game(broadcast):
     found = []
-    for port in UDP_PORT_RANGE:
-        broadcast.sendto(json.dumps({"type": "SEARCH"}).encode(), ('255.255.255.255', port))
+    for ip in ['140.113.17.12']:
+        for port in UDP_PORT_RANGE:
+            broadcast.sendto(json.dumps({"type": "SEARCH"}).encode(), (ip, port))
 
-        try:
-            data, addr = broadcast.recvfrom(1024)
-            reply = json.loads(data.decode('utf-8'))
-            if reply["type"] == "REPLY":
-                found.append((addr[0], addr[1], reply["name"]))
-                print("Found ", reply["name"], "at", addr)
-        except socket.timeout:
-            print("Timeout: no player available")
-            pass
+            try:
+                data, addr = broadcast.recvfrom(1024)
+                reply = json.loads(data.decode('utf-8'))
+                if reply["type"] == "REPLY":
+                    found.append((addr[0], addr[1], reply["name"]))
+                    print("Found ", reply["name"], "at", addr)
+            except socket.timeout:
+                print("Timeout: no player available")
+                pass
 
-    if found:
-        print("Available players:", found)
-        return found
-    else:
-        print("No game servers found.")
-        exit(0)
+        if found:
+            print("Available players:", found)
+            return found
+        else:
+            print("No game servers found.")
+            exit(0)
 
 def sign_in(client):
     while True:
