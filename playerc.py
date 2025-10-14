@@ -13,8 +13,7 @@ WAIT_WINDOW = 15.0
 def client_game(conn, lobby_sock, username):
     ui = GameUI()
     B = pls()
-    my_role = username
-    op_name = None
+    my_role = "B"
     buf = b""
     target_wins = 3
     rnd = 1
@@ -26,12 +25,11 @@ def client_game(conn, lobby_sock, username):
             
             if t == "START":
                 target_wins = int(msg.get("target_wins", 3))
-                op_name = msg.get("name")
-                ui.show_game_start(target_wins)
+                ui.show_game_start(my_role, target_wins)
             elif t == "MOVE":  # 收到對手牌
                 ui.show_round(rnd)
                 ui.show_cards(B.cards)
-                ui.show_opponents_cards(op_name, msg.get("cards"))
+                ui.show_opponents_cards(msg.get("cards"))
                 while True:
                     try:
                         my_cards = ui.get_player_move()
@@ -50,15 +48,15 @@ def client_game(conn, lobby_sock, username):
                 a_wins = msg["a_wins"]
                 b_wins = msg["b_wins"]
 
-                ui.show_round_result(b_play, a_play, winner, b_wins, a_wins)
+                ui.show_round_result(b_play, a_play, winner, b_wins, a_wins, my_role)
                 rnd += 1
             elif t == "GAME_OVER":
                 ui.show_game_over(msg.get('a_wins'), msg.get('b_wins'), 
                                 msg.get("winner"), my_role)
                 try:
                     winner = msg.get("winner")
-                    wins_delta   = 1 if winner == username else 0
-                    losses_delta = 1 if winner == op_name else 0
+                    wins_delta   = 1 if winner == "B" else 0
+                    losses_delta = 1 if winner == "A" else 0
                     payload = {
                         "action": "status_report",
                         "username": username,
@@ -79,14 +77,19 @@ def client_game(conn, lobby_sock, username):
                     # 在 5 秒內等待：最好情況是先收到 REMATCH，再收到新的 START（由 A 發）
                     # 為了更 robust，也接受直接收到 START（代表主機端已經確認雙方都同意）
                     buf2 = b""
+                    got_peer = False
                     try:
                         conn.settimeout(5.0)
                         while True:
                             msg2, buf2 = recv_json_line(conn, buf2)
                             if msg2.get("type") == "REMATCH":
-                                print("雙方都同意再來一局，重置牌庫與比分。")
+                                got_peer = True
+                                # 不 break，繼續等 START
+                            elif msg2.get("type") == "START":
+                                # 重置我方狀態後直接進入新局
                                 B = pls()
                                 rnd = 1
+                                print("雙方都同意再來一局，重置牌庫與比分。")
                                 conn.settimeout(None)
                                 break
                             # 其他忽略
@@ -149,7 +152,7 @@ def waiting_op(udp, lobby_sock, username):
                 msg = json.loads(data.decode())
                 
                 if msg["type"] == "SEARCH":
-                    reply = {"type": "REPLY", "name": username}
+                    reply = {"type": "REPLY", "name": "PlayerB"}
                     udp.sendto(json.dumps(reply).encode(), addr)
 
                 elif msg["type"] == "INVITE":
@@ -186,7 +189,7 @@ def waiting_op(udp, lobby_sock, username):
                     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     tcp.connect((addr[0], tcp_port))
                     try:
-                        client_game(tcp, lobby_sock=lobby_sock, username=username, )
+                        client_game(tcp, lobby_sock=lobby_sock, username=username)
                     except ConnectionError:
                         print("主機斷線，遊戲結束。")
                     finally:

@@ -19,7 +19,7 @@ def now_tz():
 DB_DIR = Path(__file__).resolve().parent / "storage"
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "users.db"
-
+HOST = '140.113.17.11'
 def with_db():
     """
     每次呼叫回傳一個新的連線（thread-safe）。
@@ -337,7 +337,7 @@ def handle_client(conn: socket.socket, addr):
             print(f"[-] Disconnected: {addr}, Current players: {current_players}")
 
 # ===== 入口點 =====
-def start_server(host='140.113.17.11', port=15000):
+def start_server(host=HOST, port=15000):
     ensure_schema()
     reset_all_online_flags()
     threading.Thread(target=cleanup_inactive_sessions, daemon=True).start()

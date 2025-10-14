@@ -22,8 +22,8 @@ def recv_json_line(conn, buf=b""):
 
 class GameUI:
     @staticmethod
-    def show_game_start(role: str, target_wins: int):
-        print(f"== Game start (you are {role}) ==")
+    def show_game_start(target_wins: int):
+        print(f"== Game start ==")
         print(f"對戰目標：先到 {target_wins} 勝")
 
     @staticmethod
@@ -35,8 +35,8 @@ class GameUI:
         print("Your cards:")
         print("[ " + " ".join(map(str,cards)) + " ]")
     @staticmethod
-    def show_opponents_cards(cards: list):
-        print("Opponent's cards:")
+    def show_opponents_cards(op_name: str, cards: list):
+        print(f"{op_name}'s cards:")
         print("[ " + " ".join(map(str, cards)) + " ]")
     @staticmethod
     def get_player_move():
@@ -62,16 +62,9 @@ class GameUI:
                 print("請輸入數字")
 
     @staticmethod
-    def show_round_result(my_play, op_play, winner, my_wins, op_wins, my_role):
-        if my_role == "A":
-            print(f"回合結果：你出 {my_play}，對手出 {op_play}；勝者 = {winner}")
-        else:
-            print(f"回合結果：對手出 {op_play}，你出 {my_play}；勝者 = {winner}")
-        
-        if my_role == "A":
-            print(f"目前比分：你 {my_wins} : {op_wins} 對手")
-        else:
-            print(f"目前比分：對手 {op_wins} : {my_wins} 你")
+    def show_round_result(my_play, op_play, winner, my_wins, op_wins):
+        print(f"回合結果：你出 {my_play}，對手出 {op_play}；勝者 = {winner}")
+        print(f"目前比分：你 {my_wins} : {op_wins} 對手")
 
     @staticmethod
     def show_game_over(a_wins, b_wins, winner, my_role):

@@ -7,16 +7,16 @@ from tt import GameUI, gameplay, send_json_line, recv_json_line, start_status_re
 
 HOST = '140.113.17.11'
 PORT = 15000
-UDP_PORT_RANGE = [i for i in range(10000,10010)]
+UDP_PORT_RANGE = [i for i in range(10000,10005)]
 SERVER_IP = ['140.113.17.11', '140.113.17.12', '140.113.17.13', '140.113.17.14']
 INVITE_RETRY_INTERVAL = 0.01
-INVITE_WAIT_WINDOW    = 15.0
+INVITE_WAIT_WINDOW    = 30.0
 ACK_TYPES = {"ACCEPT", "DECLINE"}
 TCP_BASE_PORT = 10000
 TCP_TRY_COUNT = 100
 
 class HostGame(gameplay):
-    def __init__(self, conn, peer_name: str, lobby_sock, username: str):
+    def __init__(self, conn, peer_name: str, lobby_sock, username: str, op_name: str):
         super().__init__()
         self.conn = conn
         self.peer_name = peer_name
@@ -27,11 +27,12 @@ class HostGame(gameplay):
         self.my_role = "A"
         self.lobby_sock = lobby_sock
         self.username = username
+        self.op_name = op_name
 
     def start_game(self):
         try:
             while True:  # 支援多局
-                self.ui.show_game_start(self.my_role, self.target_wins)
+                self.ui.show_game_start(self.target_wins)
                 self._send_new_start()
 
                 while True:
@@ -115,7 +116,7 @@ class HostGame(gameplay):
 
     def _get_my_move(self):
         self.ui.show_cards(self.playr1.cards)
-        self.ui.show_opponents_cards(self.playr2.cards)
+        self.ui.show_opponents_cards( self.op_name, self.playr2.cards)
         while True:
             try:
                 pick = self.ui.get_player_move()
@@ -158,16 +159,14 @@ class HostGame(gameplay):
         if aa == bb:
             aa += random.choice([0.1, -0.1])
         
-        winner = "A" if aa > bb else "B"
-        if winner == "A":
+        winner = self.username if aa > bb else self.op_name
+        if winner == self.username:
             self.playr1.winRound += 1
-            print(f"你贏了此回合！ 你的: {a_sum}  對手: {b_sum}")
         else:
             self.playr2.winRound += 1
-            print(f"你輸了此回合… 你的: {a_sum}  對手: {b_sum}")
-
+        
+        self.ui.show_round_result(int(aa), int(bb), winner, self.playr1.winRound, self.playr2.winRound)
         self._send_round_result(a_sum, b_sum, winner)
-        print(f"目前比分：你 {self.playr1.winRound} : {self.playr2.winRound} 對手")
 
         if self.playr1.winRound >= self.target_wins or self.playr2.winRound >= self.target_wins:
             self._send_game_over(winner)
@@ -223,7 +222,7 @@ class HostGame(gameplay):
     def _send_new_start(self):
         send_json_line(self.conn, {
             "type": "START",
-            "you_are": "PlayerB",
+            "name": self.username,
             "target_wins": self.target_wins
         })
 
@@ -236,9 +235,6 @@ class HostGame(gameplay):
         if ans != "y":
             return False
 
-        # 我方先送出 REMATCH 表態
-        send_json_line(self.conn, {"type": "REMATCH"})
-
         # 等待對方的 REMATCH（5 秒），期間忽略其他訊息
         buf = b""
         try:
@@ -247,6 +243,7 @@ class HostGame(gameplay):
                 msg, buf = recv_json_line(self.conn, buf)
                 t = msg.get("type")
                 if t == "REMATCH":
+                    send_json_line(self.conn, {"type": "REMATCH"})
                     return True
                 if t == "DISCONNECT":
                     print("[!] 對手中斷連線（DISCONNECT）。無法 rematch。")
@@ -260,7 +257,7 @@ class HostGame(gameplay):
             except Exception:
                 pass
 
-def tcp_gameplay(udp, op, lobbySock, username, host = '140.113.17.14', port = 8000):
+def tcp_gameplay(udp, op, lobbySock, username, host = '0.0.0.0', port = None):
     op_ip, op_port, name = op[0]
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -296,7 +293,7 @@ def tcp_gameplay(udp, op, lobbySock, username, host = '140.113.17.14', port = 80
                 conn, addr = tcp.accept()
                 if addr[0] == op_ip:
                     print(f"Connected by {name} from {addr}")
-                    game = HostGame(conn, name, lobby_sock=lobbySock, username=username)
+                    game = HostGame(conn, name, lobby_sock=lobbySock, username=username, op_name=name)
                     try:
                         game.start_game()
                     except ConnectionError:
@@ -321,10 +318,6 @@ def tcp_gameplay(udp, op, lobbySock, username, host = '140.113.17.14', port = 80
         print("TCP connection closed")
 
 def choose_opponent(opponents):
-    """
-    opponents: list[(ip, port, name)]
-    return:    (ip, port, name) or None (代表要重掃)
-    """
     if not opponents:
         print("No opponents available.")
         return None
@@ -381,26 +374,38 @@ def Selected_opponent(udp, opponent):
   
 def search_game(broadcast):
     found = []
-    for ip in ['140.113.17.12']:
+    timeout_total = 1.0  # 每個recv timeout秒數
+
+    print("\n[Scanning] Searching all known servers and ports...")
+    for ip in SERVER_IP:
         for port in UDP_PORT_RANGE:
-            broadcast.sendto(json.dumps({"type": "SEARCH"}).encode(), (ip, port))
-
             try:
-                data, addr = broadcast.recvfrom(1024)
-                reply = json.loads(data.decode('utf-8'))
-                if reply["type"] == "REPLY":
-                    found.append((addr[0], addr[1], reply["name"]))
-                    print("Found ", reply["name"], "at", addr)
-            except socket.timeout:
-                print("Timeout: no player available")
-                pass
+                broadcast.sendto(json.dumps({"type": "SEARCH"}).encode(), (ip, port))
+            except OSError:
+                continue
+    
+    start_time = time.time()
+    while time.time() - start_time < timeout_total:
+        try:
+            data, addr = broadcast.recvfrom(1024)
+            reply = json.loads(data.decode("utf-8"))
+            if reply.get("type") == "REPLY":
+                found.append((addr[0], addr[1], reply.get("name", "?")))
+        except socket.timeout:
+            print(f"Timeout: no player available at {ip}:{port}")
+            break
+        except Exception:
+            continue
 
-        if found:
-            print("Available players:", found)
-            return found
-        else:
-            print("No game servers found.")
-            exit(0)
+    unique_found = []
+    seen = set()
+    for f in found:
+        key = (f[0], f[1], f[2])
+        if key not in seen:
+            seen.add(key)
+            unique_found.append(f)
+
+    return unique_found
 
 def sign_in(client):
     while True:
