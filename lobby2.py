@@ -343,7 +343,7 @@ def start_server(host=HOST, port=15000):
     threading.Thread(target=cleanup_inactive_sessions, daemon=True).start()
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # 允許快速重綁（Demo 時換埠/重啟很方便）
+    # 允許快速重綁
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((host, port))
     server.listen()

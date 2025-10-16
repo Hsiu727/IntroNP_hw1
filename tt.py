@@ -77,7 +77,7 @@ class GameUI:
 
     def print_info(self, msg: str):
         print(f"[INFO] {msg}")
-    
+
 class pls:
     def __init__(self):
         self.winRound = 0
@@ -281,5 +281,3 @@ def safe_logout(lobby_sock, username: str):
             # lobby_sock.settimeout(None)
     except Exception:
         pass
-
-
