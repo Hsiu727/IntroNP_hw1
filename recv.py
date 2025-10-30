@@ -5,7 +5,7 @@ import time
 from tt import pls, GameUI, send_json_line, recv_json_line, start_status_reporter, safe_logout
 
 HOST = '140.113.17.11'
-PORT = 15000
+PORT = 16000
 UDP_PORT = 10002
 RECV_STEP = 2.0
 WAIT_WINDOW = 15.0
@@ -292,7 +292,7 @@ def main():
                 "in_game": False,
             }
 
-        _ = start_status_reporter(client, username, role="B", stats_provider=stats_provider)
+        _ = start_status_reporter(client, username, stats_provider=stats_provider)
 
         _ = input("Press any key to search opponent")
         waiting_op(udp, lobby_sock=client, username=username)

@@ -224,7 +224,7 @@ def handle_client(conn: socket.socket, addr):
             data = conn.recv(1024).decode('utf-8')
             if not data:
                 break
-            # 你的 client 用的是「每次 send 一個 JSON」，這裡沿用一次解析一個
+            # client 用的是「每次 send 一個 JSON」，這裡沿用一次解析一個
             try:
                 msg = json.loads(data)
             except Exception as e:
@@ -300,8 +300,6 @@ def handle_client(conn: socket.socket, addr):
                     }
                     update_status(username, delta=delta, online=True)
                     refresh_active(username)
-                    # 可選：回覆 OK，或省略
-                    # conn.sendall(b"OK")
                 except Exception as e:
                     print(f"[!] status_report error: {e}")
 
@@ -337,7 +335,7 @@ def handle_client(conn: socket.socket, addr):
             print(f"[-] Disconnected: {addr}, Current players: {current_players}")
 
 # ===== 入口點 =====
-def start_server(host=HOST, port=15000):
+def start_server(host=HOST, port=16000):
     ensure_schema()
     reset_all_online_flags()
     threading.Thread(target=cleanup_inactive_sessions, daemon=True).start()

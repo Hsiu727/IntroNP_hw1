@@ -6,7 +6,7 @@ import random
 from tt import GameUI, gameplay, send_json_line, recv_json_line, start_status_reporter, safe_logout
 
 HOST = '140.113.17.11'
-PORT = 15000
+PORT = 16000
 UDP_PORT_RANGE = [i for i in range(10000,10005)]
 SERVER_IP = ['140.113.17.11', '140.113.17.12', '140.113.17.13', '140.113.17.14']
 INVITE_RETRY_INTERVAL = 0.01
@@ -264,7 +264,7 @@ def tcp_gameplay(udp, op, lobbySock, username, host = '0.0.0.0', port = None):
     selected_port = None
     try:
         tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # === 新增：循環找可用埠 ===
+        # === 循環找可用埠 ===
         base = TCP_BASE_PORT if port is None else port
         for p in range(base, base + TCP_TRY_COUNT):
             try:
@@ -339,9 +339,9 @@ def choose_opponent(opponents):
                 return opponents[idx-1]
         print("Invalid choice. Try again.")
 
-def Selected_opponent(udp, opponent):
+def Selected_opponent(udp, username, opponent):
     target_ip, target_port, name = opponent
-    invite = {"type": "INVITE", "from": "PlayerA"}
+    invite = {"type": "INVITE", "from": username}
 
     prev_to = udp.gettimeout()          # ← 記住原本 timeout（通常是 1.0）
     try:
@@ -491,7 +491,7 @@ def main():
                 "losses_delta":0,
                 "in_game":False,
             }
-        _ = start_status_reporter(client, username, role="A", stats_provider=stats_provider)
+        _ = start_status_reporter(client, username, stats_provider=stats_provider)
 
         while True:
             _ = input("Press any key to search opponent")
@@ -500,7 +500,7 @@ def main():
                 target = choose_opponent(players)
                 if target is None:
                     continue
-                result = Selected_opponent(broadcast, target)
+                result = Selected_opponent(broadcast, username, target)
                 if result == "ACCEPT":
                     tcp_gameplay(broadcast, [target], lobbySock=client, username=username)
                     break

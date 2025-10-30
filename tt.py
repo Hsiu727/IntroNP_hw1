@@ -216,15 +216,12 @@ def main():
     for _ in range(5):
         gg.operates()
 
-def start_status_reporter(lobby_sock, username, role, stats_provider):
+def start_status_reporter(lobby_sock, username, stats_provider):
     """
     stats_provider(): -> dict like
       {
-        "xp_delta": int,
-        "coins_delta": int,
         "wins_delta": int,
         "losses_delta": int,
-        "level_delta": int,
         "in_game": bool,
       }
     """
